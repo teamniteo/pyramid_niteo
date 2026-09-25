@@ -1,0 +1,33 @@
+[project]
+name = "pyramid-niteo"
+version = "0.1.0"
+description = "Opt-in Pyramid tweens for Niteo applications on Fly.io"
+requires-python = ">=3.14"
+license = "MIT"
+authors = [{ name = "Niteo", email = "info@niteo.co" }]
+readme = "README.md"
+dependencies = ["pyramid>=2.0.2,<3", "expandvars>=1.0,<2"]
+
+[project.urls]
+Source = "https://github.com/teamniteo/pyramid_niteo"
+Issues = "https://github.com/teamniteo/pyramid_niteo/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest", "pytest-cov", "webtest", "ruff", "build", "twine", "pyramid-tm", "pyramid-openapi3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=pyramid_niteo --cov-branch --cov-report=term-missing --cov-fail-under=100"
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:"]

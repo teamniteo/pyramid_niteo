@@ -1,0 +1,11 @@
+"""Dotted tween names for the required ordering relationships."""
+
+SECURITY = "pyramid_niteo.security_headers.tween_factory"
+RELEASE = "pyramid_niteo.release_version.tween_factory"
+XDEV = "pyramid_niteo.xdev.tween_factory"
+MALFORMED = "pyramid_niteo.malformed_request.tween_factory"
+CLIENT = "pyramid_niteo.client_addr.tween_factory"
+ACCESS = "pyramid_niteo.flydev_access.tween_factory"
+TIMING = "pyramid_niteo.uniform_response_time.tween_factory"
+OPENAPI = "pyramid_openapi3.tween.response_tween_factory"
+TRANSACTION = "pyramid_tm.tm_tween_factory"
