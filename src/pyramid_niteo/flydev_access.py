@@ -1,5 +1,6 @@
 """Restrict *.fly.dev requests to an explicit IP allowlist."""
 
+import logging
 from ipaddress import ip_address
 
 from pyramid.config import Configurator
@@ -13,6 +14,8 @@ from pyramid.tweens import INGRESS
 
 from ._ordering import ACCESS, CLIENT
 from ._types import Handler
+
+logger = logging.getLogger(__name__)
 
 
 def includeme(config: Configurator) -> None:
@@ -42,6 +45,13 @@ def tween_factory(handler: Handler, registry: Registry) -> Handler:
             not request.headers.get("Fly-Client-IP")
             or request.client_addr not in allowed
         ):
+            logger.warning(
+                "Fly app access denied",
+                extra={
+                    "host": host,
+                    "client_ip": request.client_addr,
+                },
+            )
             return HTTPForbidden("Access to this Fly app is restricted.")
         return handler(request)
 

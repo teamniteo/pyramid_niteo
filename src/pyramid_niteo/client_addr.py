@@ -1,5 +1,6 @@
 """Resolve the visitor IP for direct Fly and Cloudflare → Fly traffic."""
 
+import logging
 from ipaddress import ip_address
 
 from pyramid.config import Configurator
@@ -12,6 +13,8 @@ from pyramid.tweens import INGRESS
 from ._cloudflare import NETWORKS
 from ._ordering import CLIENT
 from ._types import Handler
+
+logger = logging.getLogger(__name__)
 
 
 def includeme(config: Configurator) -> None:
@@ -33,6 +36,13 @@ def tween_factory(handler: Handler, registry: Registry) -> Handler:
             if any(addr in network for network in NETWORKS):
                 addr = ip_address(request.headers.get("CF-Connecting-IP", ""))
         except ValueError:
+            logger.warning(
+                "Invalid client IP headers",
+                extra={
+                    "fly_client_ip": raw,
+                    "cf_connecting_ip": request.headers.get("CF-Connecting-IP"),
+                },
+            )
             return HTTPBadRequest("Invalid client IP headers.")
         request.remote_addr = str(addr)
         return handler(request)

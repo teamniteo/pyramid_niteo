@@ -1,5 +1,7 @@
 """Reject undecodable URLs before any inner tween consumes them."""
 
+import logging
+
 from pyramid.config import Configurator
 from pyramid.httpexceptions import HTTPNotFound
 from pyramid.registry import Registry
@@ -9,6 +11,8 @@ from pyramid.tweens import EXCVIEW
 
 from ._ordering import MALFORMED, OPENAPI, TIMING, TRANSACTION
 from ._types import Handler
+
+logger = logging.getLogger(__name__)
 
 
 def includeme(config: Configurator) -> None:
@@ -20,6 +24,9 @@ def tween_factory(handler: Handler, registry: Registry) -> Handler:
         try:
             _ = request.url
         except UnicodeDecodeError:
+            logger.warning(
+                "Malformed request URL", extra={"url": request.environ.get("PATH_INFO")}
+            )
             return HTTPNotFound()
         return handler(request)
 
