@@ -135,6 +135,107 @@ def test_duplicate_csp_directive_rejected(make_app):
 
 
 @pytest.mark.parametrize(
+    ("extras", "expected"),
+    [
+        (
+            "img-src https://cdn.example.com",
+            "img-src 'self' data: https://cdn.example.com;",
+        ),
+        ("img-src data: 'self'", "img-src 'self' data:;"),
+        (
+            "img-src https://cdn.example.com https://cdn.example.com data:",
+            "img-src 'self' data: https://cdn.example.com;",
+        ),
+        (
+            "frame-src http://localhost:8787\nimg-src http://localhost:8787",
+            "frame-src 'self' http://localhost:8787; "
+            "img-src 'self' data: http://localhost:8787;",
+        ),
+        (
+            "frame-src http://localhost:8787; img-src http://localhost:8787",
+            "frame-src 'self' http://localhost:8787; "
+            "img-src 'self' data: http://localhost:8787;",
+        ),
+    ],
+)
+def test_extra_sources_merged_into_directives(make_app, extras, expected):
+    app = make_app(
+        ["security_headers"],
+        {
+            "niteo.csp_policy": "default-src 'self'; frame-src 'self'; "
+            "img-src 'self' data:",
+            "niteo.csp_extra_sources": extras,
+        },
+    )
+    csp = app.get("/").headers["Content-Security-Policy"]
+    assert expected in csp
+    assert csp.count("img-src") == 1
+
+
+def test_extra_sources_on_default_policy(make_app):
+    app = make_app(
+        ["security_headers"],
+        {"niteo.csp_extra_sources": "script-src https://scripts.example.com"},
+    )
+    csp = app.get("/").headers["Content-Security-Policy"]
+    assert csp.startswith(
+        "default-src 'self'; script-src 'self' https://scripts.example.com 'nonce-"
+    )
+
+
+def test_extra_sources_with_connect_origins(make_app):
+    app = make_app(
+        ["security_headers"],
+        {
+            "niteo.csp_policy": "default-src 'self'; connect-src 'self'",
+            "niteo.csp_extra_sources": "connect-src http://localhost:8787",
+            "niteo.csp_connect_origins": (
+                "http://localhost:8787 https://cdn.example.com"
+            ),
+        },
+    )
+    csp = app.get("/").headers["Content-Security-Policy"]
+    assert "connect-src 'self' http://localhost:8787 https://cdn.example.com;" in csp
+
+
+@pytest.mark.parametrize(
+    ("extras", "error"),
+    [
+        ("frame-src http://localhost:8787", "frame-src is missing from"),
+        ("connect-src http://localhost:8787", "connect-src is missing from"),
+        ("img-src", "img-src has no sources"),
+        ("img-src https://a.example.com; img-src https://b.example.com", "Duplicate"),
+        ("img-src https://a.example.com\nimg-src https://b.example.com", "Duplicate"),
+    ],
+)
+def test_invalid_extra_sources(make_app, extras, error):
+    with pytest.raises(ConfigurationError, match=error):
+        make_app(
+            ["security_headers"],
+            {
+                "niteo.csp_policy": "default-src 'self'; img-src 'self'",
+                "niteo.csp_extra_sources": extras,
+            },
+        )
+
+
+@pytest.mark.parametrize(
+    ("policy", "extras", "directive"),
+    [
+        ("img-src 'none'", "img-src https://cdn.example.com", "img-src"),
+        ("img-src 'self'", "img-src 'none'", "img-src"),
+        ("script-src 'self'", "script-src 'none'", "script-src"),
+    ],
+)
+def test_extra_sources_none_conflict(make_app, policy, extras, directive):
+    with pytest.raises(ConfigurationError, match=f"CSP {directive}: 'none' conflicts"):
+        make_app(
+            ["security_headers"],
+            {"niteo.csp_policy": policy, "niteo.csp_extra_sources": extras},
+        )
+
+
+@pytest.mark.parametrize(
     "version",
     [
         None,

@@ -30,17 +30,32 @@ def includeme(config: Configurator) -> None:
     config.add_tween(SECURITY, over=(MALFORMED, CLIENT, OPENAPI, TRANSACTION, EXCVIEW))
 
 
-def _policy(settings: dict) -> dict[str, list[str]]:
-    policy = {}
-    for directive in (
-        settings.get("niteo.csp_policy", DEFAULT_POLICY).replace("\n", ";").split(";")
-    ):
+def _directives(text: str) -> dict[str, list[str]]:
+    directives = {}
+    for directive in text.replace("\n", ";").split(";"):
         tokens = directive.split()
         if tokens:
             name, *values = tokens
-            if name in policy:
+            if name in directives:
                 raise ConfigurationError(f"Duplicate CSP directive: {name}")
-            policy[name] = values
+            directives[name] = values
+    return directives
+
+
+def _policy(settings: dict) -> dict[str, list[str]]:
+    policy = _directives(settings.get("niteo.csp_policy", DEFAULT_POLICY))
+    for name, extras in _directives(
+        settings.get("niteo.csp_extra_sources", "")
+    ).items():
+        if not extras:
+            raise ConfigurationError(f"niteo.csp_extra_sources: {name} has no sources")
+        if name not in policy:
+            raise ConfigurationError(
+                f"niteo.csp_extra_sources: {name} is missing from niteo.csp_policy"
+            )
+        for source in extras:
+            if source not in policy[name]:
+                policy[name].append(source)
     for origin in settings.get("niteo.csp_connect_origins", "").split():
         parsed = urlsplit(origin)
         if (
