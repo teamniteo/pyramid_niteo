@@ -6,6 +6,8 @@ from pyramid.httpexceptions import HTTPUnauthorized
 from pyramid.response import Response
 from webtest import TestApp
 
+SETTINGS = {"niteo.max_body_size": 1024}
+
 
 @pytest.fixture(autouse=True)
 def release_environment(monkeypatch):
@@ -15,7 +17,7 @@ def release_environment(monkeypatch):
 @pytest.fixture
 def make_app():
     def make(modules=(), settings=None, view=None):
-        config = Configurator(settings=settings or {})
+        config = Configurator(settings={**SETTINGS, **(settings or {})})
         for module in modules:
             config.include(f"pyramid_niteo.{module}")
         config.add_route("root", "/*path")

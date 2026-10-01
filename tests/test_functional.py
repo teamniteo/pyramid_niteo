@@ -4,6 +4,7 @@ from itertools import combinations
 from unittest.mock import Mock
 
 import pytest
+from conftest import SETTINGS
 from pyramid.config import Configurator
 from pyramid.interfaces import ITweens
 from pyramid.response import Response
@@ -12,6 +13,7 @@ from webtest import TestApp
 
 from pyramid_niteo._ordering import (
     ACCESS,
+    BODY,
     CLIENT,
     MALFORMED,
     OPENAPI,
@@ -27,11 +29,12 @@ MODULES = [
     "release_version",
     "xdev",
     "malformed_request",
+    "max_body_size",
     "client_addr",
     "flydev_access",
     "uniform_response_time",
 ]
-NAMES = [SECURITY, RELEASE, XDEV, MALFORMED, CLIENT, ACCESS, TIMING]
+NAMES = [SECURITY, RELEASE, XDEV, MALFORMED, BODY, CLIENT, ACCESS, TIMING]
 SUBSETS = [
     subset
     for size in range(len(MODULES) + 1)
@@ -84,6 +87,19 @@ def test_headers_on_early_and_exception_responses(
     assert "niteo.co/careers" in response.headers["X-Dev"]
 
 
+def test_headers_on_rejected_body(make_app):
+    response = make_app(reversed(MODULES)).post("/", b"x" * 1025, status=413)
+    assert "nonce-" in response.headers["Content-Security-Policy"]
+    assert "X-Release-Version" in response.headers
+    assert "X-Dev" in response.headers
+
+
+def test_rejected_body_never_calls_view(make_app):
+    view = Mock(side_effect=AssertionError("view must not run"))
+    make_app(["max_body_size"], view=view).post("/", b"x" * 1025, status=413)
+    view.assert_not_called()
+
+
 def test_malformed_request_never_calls_view(make_app):
     view = Mock(side_effect=AssertionError("view must not run"))
     make_app(["malformed_request"], view=view).get(
@@ -129,7 +145,7 @@ def test_timing_includes_real_transaction_commit(monkeypatch):
 
 
 def test_real_openapi_and_transaction_order():
-    config = Configurator()
+    config = Configurator(settings=SETTINGS)
     config.include("pyramid_tm")
     config.include("pyramid_openapi3")
     for module in reversed(MODULES):
@@ -140,10 +156,12 @@ def test_real_openapi_and_transaction_order():
 
 
 def assert_required_order(names):
-    relationships = [(CLIENT, ACCESS), (MALFORMED, TIMING)]
+    relationships = [(CLIENT, ACCESS), (MALFORMED, TIMING), (BODY, TIMING)]
     for outer in [SECURITY, RELEASE, XDEV]:
-        relationships.extend((outer, inner) for inner in [MALFORMED, CLIENT, ACCESS])
-    for outer in [SECURITY, RELEASE, XDEV, MALFORMED, TIMING]:
+        relationships.extend(
+            (outer, inner) for inner in [MALFORMED, BODY, CLIENT, ACCESS]
+        )
+    for outer in [SECURITY, RELEASE, XDEV, MALFORMED, BODY, TIMING]:
         relationships.extend(
             (outer, inner) for inner in [OPENAPI, TRANSACTION, EXCVIEW]
         )
@@ -153,7 +171,7 @@ def assert_required_order(names):
 
 
 def test_application_can_order_independent_headers():
-    config = Configurator()
+    config = Configurator(settings=SETTINGS)
     for module in MODULES:
         config.include(f"pyramid_niteo.{module}")
     # No package constraint requires security headers outside release headers.

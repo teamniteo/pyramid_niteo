@@ -3,6 +3,7 @@
 import logging
 
 import pytest
+from pyramid.request import Request
 
 
 @pytest.mark.parametrize(
@@ -86,3 +87,29 @@ def test_allowed_request_is_quiet(make_app, caplog):
         settings={"niteo.flydev_allowlist": "192.0.2.1"},
     ).get("/", headers={"Host": "app.fly.dev", "Fly-Client-IP": "192.0.2.1"})
     assert not caplog.records
+
+
+@pytest.mark.parametrize(
+    ("content_length", "status", "message", "fields"),
+    [
+        (1025, 413, "Request body too large", {"path": "/", "content_length": 1025}),
+        (None, 411, "Request body length missing", {"path": "/"}),
+    ],
+)
+def test_rejected_body_logs_once(
+    make_app, caplog, content_length, status, message, fields
+):
+    request = Request.blank(
+        "/?token=do-not-log",
+        method="POST",
+        headers={"Authorization": "Bearer do-not-log"},
+    )
+    request.content_length = content_length
+    assert request.get_response(make_app(["max_body_size"]).app).status_code == status
+    (record,) = caplog.records
+    assert record.name == "pyramid_niteo.max_body_size"
+    assert record.levelno == logging.WARNING
+    assert record.getMessage() == message
+    for key, value in fields.items():
+        assert getattr(record, key) == value
+    assert "do-not-log" not in repr(record.__dict__)
