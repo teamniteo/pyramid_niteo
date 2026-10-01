@@ -11,12 +11,13 @@ import pyramid_niteo
 
 assert "/src/pyramid_niteo/" not in str(Path(pyramid_niteo.__file__).resolve())
 os.environ["GIT_COMMIT"] = "0123456789abcdef0123456789abcdef01234567"
-config = Configurator()
+config = Configurator(settings={"niteo.max_body_size": 1024})
 for module in [
     "security_headers",
     "release_version",
     "xdev",
     "malformed_request",
+    "max_body_size",
     "client_addr",
     "flydev_access",
     "uniform_response_time",

@@ -10,12 +10,14 @@ from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.tweens import EXCVIEW
 
-from ._ordering import CLIENT, MALFORMED, OPENAPI, RELEASE, TRANSACTION
+from ._ordering import BODY, CLIENT, MALFORMED, OPENAPI, RELEASE, TRANSACTION
 from ._types import Handler
 
 
 def includeme(config: Configurator) -> None:
-    config.add_tween(RELEASE, over=(MALFORMED, CLIENT, OPENAPI, TRANSACTION, EXCVIEW))
+    config.add_tween(
+        RELEASE, over=(MALFORMED, BODY, CLIENT, OPENAPI, TRANSACTION, EXCVIEW)
+    )
 
 
 def tween_factory(handler: Handler, registry: Registry) -> Handler:

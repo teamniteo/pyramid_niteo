@@ -27,6 +27,7 @@ def main(global_config, **settings):
     config.include("pyramid_niteo.security_headers")
     config.include("pyramid_niteo.release_version")
     config.include("pyramid_niteo.malformed_request")
+    config.include("pyramid_niteo.max_body_size")
     config.include("pyramid_niteo.client_addr")
     config.include("pyramid_niteo.flydev_access")
     # Optional: config.include("pyramid_niteo.xdev")
@@ -104,6 +105,19 @@ Sets `X-Release-Version` from the `GIT_COMMIT` environment variable. It must be 
 
 Returns 404 for URLs that cannot be decoded as UTF-8, before URL-consuming inner tweens or views run. It does not intercept unrelated application errors.
 
+### `max_body_size`
+
+Returns 413 for `PATCH`, `POST`, and `PUT` bodies over `niteo.max_body_size` bytes, and 411 for those that do not declare a `Content-Length`, before any inner tween or view reads the body. Other methods are not checked.
+
+```ini
+# 11 MiB
+niteo.max_body_size = 11534336
+```
+
+The limit is required. Missing, non-integer, or negative values fail at startup. Set it above the largest body any endpoint accepts.
+
+Requiring a declared length refuses chunked uploads, so clients cannot stream a body of unknown size.
+
 ### `uniform_response_time`
 
 Pads configured POST endpoints to a minimum total duration. Configure the paths and floor per application. The defaults are empty paths and zero milliseconds.
@@ -135,6 +149,7 @@ Each `includeme()` declares only the relationships its behavior needs:
 
 - Client IP resolution precedes `flydev_access`.
 - Malformed URL handling precedes timing, OpenAPI, transactions, and routing.
+- The body size limit precedes timing, OpenAPI, transactions, and routing.
 - Response headers wrap early denials and OpenAPI/transaction/exception responses.
 - Timing wraps OpenAPI, transactions, and the exception view so commits count.
 

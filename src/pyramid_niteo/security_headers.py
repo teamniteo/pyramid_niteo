@@ -10,7 +10,7 @@ from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.tweens import EXCVIEW
 
-from ._ordering import CLIENT, MALFORMED, OPENAPI, SECURITY, TRANSACTION
+from ._ordering import BODY, CLIENT, MALFORMED, OPENAPI, SECURITY, TRANSACTION
 from ._types import Handler
 
 DEFAULT_POLICY = "default-src 'self'; script-src 'self'; frame-ancestors 'self'"
@@ -27,7 +27,9 @@ HEADERS = {
 
 
 def includeme(config: Configurator) -> None:
-    config.add_tween(SECURITY, over=(MALFORMED, CLIENT, OPENAPI, TRANSACTION, EXCVIEW))
+    config.add_tween(
+        SECURITY, over=(MALFORMED, BODY, CLIENT, OPENAPI, TRANSACTION, EXCVIEW)
+    )
 
 
 def _directives(text: str) -> dict[str, list[str]]:
