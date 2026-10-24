@@ -30,6 +30,7 @@ def main(global_config, **settings):
     config.include("pyramid_niteo.max_body_size")
     config.include("pyramid_niteo.client_addr")
     config.include("pyramid_niteo.flydev_access")
+    config.include("pyramid_niteo.request_log")
     # Optional: config.include("pyramid_niteo.xdev")
     # Optional: config.include("pyramid_niteo.uniform_response_time")
     # Register application routes and views here.
@@ -118,6 +119,14 @@ The limit is required. Missing, non-integer, or negative values fail at startup.
 
 Requiring a declared length refuses chunked uploads, so clients cannot stream a body of unknown size.
 
+### `request_log`
+
+Logs one INFO record per request, as Heroku's router did, because Fly Proxy writes no request logs. Its structured fields are `method`, `path`, `host`, `request_bytes`, `status`, `response_bytes`, `duration_ms`, `client_ip`, `user_agent`, `request_id` (Fly's `Fly-Request-Id`), and `cf_ray` (Cloudflare's `CF-Ray`, to find the same request in Cloudflare's logs). No settings required.
+
+`path` is the raw WSGI path, without the query string, and no other headers are logged, so tokens in query strings or `Authorization` stay out of the logs. Include `client_addr` so `client_ip` is the visitor rather than Fly Proxy. Health checks are logged too.
+
+The record covers what inner tweens and views answer: access denials, body limits, padding, OpenAPI and transaction completion, and exception views. An exception that escapes the exception view is logged with status 500 and re-raised. Requests that `client_addr` or `malformed_request` reject are not logged here, as those modules log their own warnings.
+
 ### `uniform_response_time`
 
 Pads configured POST endpoints to a minimum total duration. Configure the paths and floor per application. The defaults are empty paths and zero milliseconds.
@@ -148,6 +157,7 @@ Expands environment variables with two substitution passes, `${VAR:-default}`, `
 Each `includeme()` declares only the relationships its behavior needs:
 
 - Client IP resolution precedes `flydev_access`.
+- Request logging runs inside client IP resolution and malformed URL handling, and wraps access checks, body limits, timing, OpenAPI, transactions, and the exception view.
 - Malformed URL handling precedes timing, OpenAPI, transactions, and routing.
 - The body size limit precedes timing, OpenAPI, transactions, and routing.
 - Response headers wrap early denials and OpenAPI/transaction/exception responses.

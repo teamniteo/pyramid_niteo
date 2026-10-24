@@ -18,6 +18,7 @@ from pyramid_niteo._ordering import (
     MALFORMED,
     OPENAPI,
     RELEASE,
+    REQUEST_LOG,
     SECURITY,
     TIMING,
     TRANSACTION,
@@ -32,9 +33,10 @@ MODULES = [
     "max_body_size",
     "client_addr",
     "flydev_access",
+    "request_log",
     "uniform_response_time",
 ]
-NAMES = [SECURITY, RELEASE, XDEV, MALFORMED, BODY, CLIENT, ACCESS, TIMING]
+NAMES = [SECURITY, RELEASE, XDEV, MALFORMED, BODY, CLIENT, ACCESS, REQUEST_LOG, TIMING]
 SUBSETS = [
     subset
     for size in range(len(MODULES) + 1)
@@ -157,6 +159,11 @@ def test_real_openapi_and_transaction_order():
 
 def assert_required_order(names):
     relationships = [(CLIENT, ACCESS), (MALFORMED, TIMING), (BODY, TIMING)]
+    relationships.extend(
+        (REQUEST_LOG, inner)
+        for inner in [ACCESS, BODY, TIMING, OPENAPI, TRANSACTION, EXCVIEW]
+    )
+    relationships.extend((outer, REQUEST_LOG) for outer in [CLIENT, MALFORMED])
     for outer in [SECURITY, RELEASE, XDEV]:
         relationships.extend(
             (outer, inner) for inner in [MALFORMED, BODY, CLIENT, ACCESS]
