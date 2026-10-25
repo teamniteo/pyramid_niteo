@@ -20,6 +20,7 @@ for module in [
     "max_body_size",
     "client_addr",
     "flydev_access",
+    "request_log",
     "uniform_response_time",
 ]:
     config.include(f"pyramid_niteo.{module}")
